@@ -2,4 +2,4 @@
 // Formspree form endpoint (https://formspree.io/f/xxxx) here
 // (see README.md, "Collect responses"). Leave empty to run in preview mode:
 // the form works, but answers are only kept in this browser.
-window.SURVEY_ENDPOINT = "";
+window.SURVEY_ENDPOINT = "https://formspree.io/f/mjykqjnr";
