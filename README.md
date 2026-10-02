@@ -37,6 +37,12 @@ Questions are ordered broad-to-specific so the hydration items (Q8–Q11) sit in
    ```
 5. Commit and push. Each submission becomes one row in the sheet, with a header row created on the first response.
 
+### Alternative: Formspree (no Google Apps Script)
+
+1. Sign up at [formspree.io](https://formspree.io) and create a new form.
+2. Copy its endpoint (`https://formspree.io/f/xxxx`) into `config.js` as `SURVEY_ENDPOINT`.
+3. Responses appear in the Formspree dashboard; export them as CSV and import into Google Sheets. The free plan has a monthly submission cap.
+
 Until an endpoint is set, the page runs in preview mode and keeps answers only in the visitor's browser.
 
 ## Publish the link (GitHub Pages)
