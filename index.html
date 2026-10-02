@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Habits Check-in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  /* Layout: single narrow column of question blocks, a sticky progress strip, scale answers as a 5-step track. */
+  :root {
+    --bg: #f3f6f4;
+    --surface: #ffffff;
+    --ink: #17302a;
+    --muted: #5b6f69;
+    --line: #d5dfdb;
+    --accent: #2f6b5a;
+    --accent-ink: #ffffff;
+    --mark: #e0a53b;
+    --error: #b4442f;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101a17;
+      --surface: #17241f;
+      --ink: #e4eeea;
+      --muted: #9db1aa;
+      --line: #2c3d37;
+      --accent: #6fbfa4;
+      --accent-ink: #0c1512;
+      --mark: #f0b955;
+      --error: #f08a74;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 17px/1.55 var(--font-body);
+    padding-inline: 16px;
+  }
+  main { max-width: 640px; margin: 0 auto; padding-block: 40px 80px; }
+
+  header h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 2.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  header p { margin: 0; color: var(--muted); max-width: 52ch; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    margin-top: 16px; font-size: 0.85rem; color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .progress {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--bg);
+    padding-block: 14px 10px;
+    margin-top: 28px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.85rem; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-track { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+
+  form { display: grid; gap: 14px; }
+  .section-label {
+    margin: 22px 0 0;
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--muted);
+  }
+
+  fieldset, .block {
+    margin: 0; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); padding: 20px;
+    min-width: 0;
+  }
+  fieldset.missing, .block.missing { border-color: var(--error); }
+  legend { padding: 0; float: left; width: 100%; }
+  legend + * { clear: both; }
+  .q {
+    display: flex; gap: 12px; align-items: baseline;
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 1.12rem; line-height: 1.35; margin-bottom: 16px;
+  }
+  .q-num { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; min-width: 2ch; }
+
+  .about { display: grid; grid-template-columns: 1fr 120px; gap: 14px; }
+  @media (max-width: 460px) { .about { grid-template-columns: 1fr; } }
+  .field label { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
+  .field input {
+    width: 100%; font: inherit; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* 1-5 scale */
+  .scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .scale input, .choices input { position: absolute; opacity: 0; pointer-events: none; }
+  .scale label {
+    display: grid; place-items: center;
+    height: 48px; border-radius: 8px; border: 1px solid var(--line);
+    font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+    background: var(--bg);
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .scale label:hover { border-color: var(--accent); }
+  .scale input:checked + label { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .scale input:focus-visible + label, .choices input:focus-visible + label { outline: 2px solid var(--mark); outline-offset: 2px; }
+  .ends {
+    display: flex; justify-content: space-between; gap: 16px;
+    margin-top: 8px; font-size: 0.82rem; color: var(--muted);
+  }
+  .ends span:last-child { text-align: right; }
+
+  /* single-choice lists */
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); cursor: pointer;
+  }
+  .choices label::before {
+    content: ""; flex: none; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--muted);
+  }
+  .choices input:checked + label { border-color: var(--accent); }
+  .choices input:checked + label::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 2px var(--surface); }
+
+  .submit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 18px; }
+  button {
+    font: 700 1rem var(--font-body); cursor: pointer;
+    background: var(--accent); color: var(--accent-ink);
+    border: 0; border-radius: 8px; padding: 14px 28px;
+  }
+  button:disabled { opacity: .6; cursor: progress; }
+  button:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+  .status { font-size: 0.9rem; color: var(--error); }
+
+  .thanks { text-align: left; padding-block: 40px; }
+  .thanks h2 { font-family: var(--font-display); font-size: 2rem; margin: 0 0 8px; }
+  .thanks p { color: var(--muted); margin: 0; }
+
+  .preview-note {
+    margin-top: 16px; font-size: 0.82rem; color: var(--muted);
+    border-left: 3px solid var(--mark); padding-left: 10px;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Daily Habits Check-in</h1>
+    <p>A short survey about how you look after yourself day to day: activity, routine, food and drink. There are no right answers.</p>
+    <div class="meta"><span>12 questions</span><span>About 3 minutes</span><span>Scale: 1 = lowest, 5 = highest</span></div>
+    <p class="preview-note" id="previewNote" hidden>Preview mode: no response endpoint is set in config.js, so answers stay in this browser.</p>
+  </header>
+
+  <div class="progress" aria-hidden="true">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="progressText">0 / 14</span>
+  </div>
+
+  <form id="survey" novalidate>
+    <div class="block" id="aboutBlock">
+      <div class="about">
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" maxlength="80" required>
+        </div>
+        <div class="field">
+          <label for="age">Age</label>
+          <input id="age" name="age" type="number" inputmode="numeric" min="10" max="120" required>
+        </div>
+      </div>
+    </div>
+    <div id="questions"></div>
+
+    <div class="submit-row">
+      <button type="submit" id="submitBtn">Submit answers</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </form>
+
+  <section class="thanks" id="thanks" hidden>
+    <h2>Thanks, you're done.</h2>
+    <p>Your answers were recorded. You can close this page.</p>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+  // Order is intentional: broad activity questions first, consumption questions grouped together later.
+  const QUESTIONS = [
+    { section: "Activity" },
+    { key: "q1_device_tracking_freq", type: "scale", text: "How often do you use a smart device (watch, ring or phone app) to track your activity?", low: "Never", high: "Every day" },
+    { key: "q2_device", type: "choice", text: "Which smart device do you mainly use?",
+      options: ["Apple Watch", "Fitbit", "Garmin", "Samsung Galaxy Watch", "WHOOP", "Oura Ring", "I don't use one"] },
+    { key: "q3_workout_regimen_importance", type: "scale", text: "How important is having a regular workout regimen to you?", low: "Not important", high: "Extremely important" },
+    { key: "q4_routine_satisfaction", type: "scale", text: "How satisfied are you with your current daily routine?", low: "Very unsatisfied", high: "Very satisfied" },
+    { section: "Food and drink" },
+    { key: "q5_food_tracking", type: "scale", text: "How often do you track your food or follow a meal plan?", low: "Never", high: "Always" },
+    { key: "q6_meal_packing", type: "scale", text: "How often do you plan or pack your meals when commuting or at class?", low: "Never", high: "Always" },
+    { key: "q7_alcohol_moderation_conscious", type: "scale", text: "How conscious are you about moderating your alcohol intake?", low: "Not at all conscious", high: "Very conscious" },
+    { key: "q8_hydration_tracking", type: "scale", text: "How often do you track how much water you drink?", low: "Never", high: "Always" },
+    { key: "q9_wish_more_water", type: "scale", text: "How much do you agree: “I wish I drank more water during the day.”", low: "Strongly disagree", high: "Strongly agree" },
+    { key: "q10_carry_bottle", type: "scale", text: "How often do you carry a reusable water bottle with you?", low: "Never", high: "All day, every day" },
+    { key: "q11_bottle_age", type: "choice", text: "How long have you had the water bottle you use most?",
+      options: ["Less than 1 month", "1–6 months", "6–12 months", "1–2 years", "Over 2 years"], numeric: true },
+    { section: "Looking ahead" },
+    { key: "q12_automatic_tracking_interest", type: "scale", text: "If tracking what you eat and drink happened automatically, how likely would you be to use it?", low: "Very unlikely", high: "Very likely" },
+  ];
+
+  const host = document.getElementById("questions");
+  const form = document.getElementById("survey");
+  const keys = QUESTIONS.filter(q => q.key).map(q => q.key);
+  const TOTAL = keys.length + 2; // + name and age
+  let n = 0;
+
+  for (const q of QUESTIONS) {
+    if (q.section) {
+      const h = document.createElement("p");
+      h.className = "section-label";
+      h.textContent = q.section;
+      host.appendChild(h);
+      continue;
+    }
+    n++;
+    const fs = document.createElement("fieldset");
+    fs.id = "fs_" + q.key;
+    const legend = document.createElement("legend");
+    legend.innerHTML = `<span class="q"><span class="q-num">${String(n).padStart(2, "0")}</span><span></span></span>`;
+    legend.querySelector(".q span:last-child").textContent = q.text;
+    fs.appendChild(legend);
+
+    if (q.type === "scale") {
+      const row = document.createElement("div");
+      row.className = "scale";
+      for (let v = 1; v <= 5; v++) {
+        const id = `${q.key}_${v}`;
+        row.insertAdjacentHTML("beforeend",
+          `<input type="radio" id="${id}" name="${q.key}" value="${v}"><label for="${id}" aria-label="${v} of 5">${v}</label>`);
+      }
+      fs.appendChild(row);
+      const ends = document.createElement("div");
+      ends.className = "ends";
+      ends.innerHTML = "<span></span><span></span>";
+      ends.children[0].textContent = "1 · " + q.low;
+      ends.children[1].textContent = "5 · " + q.high;
+      fs.appendChild(ends);
+    } else {
+      const list = document.createElement("div");
+      list.className = "choices";
+      q.options.forEach((opt, i) => {
+        const id = `${q.key}_${i}`;
+        const value = q.numeric ? String(i + 1) : opt;
+        const input = document.createElement("input");
+        Object.assign(input, { type: "radio", id, name: q.key, value });
+        const label = document.createElement("label");
+        label.htmlFor = id;
+        label.textContent = opt;
+        list.append(input, label);
+      });
+      fs.appendChild(list);
+    }
+    host.appendChild(fs);
+  }
+
+  const nameEl = document.getElementById("name");
+  const ageEl = document.getElementById("age");
+  const ageValid = () => { const a = Number(ageEl.value); return Number.isInteger(a) && a >= 10 && a <= 120; };
+
+  function answeredCount() {
+    const fd = new FormData(form);
+    let c = keys.filter(k => fd.get(k)).length;
+    if (nameEl.value.trim()) c++;
+    if (ageValid()) c++;
+    return c;
+  }
+  function updateProgress() {
+    const c = answeredCount();
+    document.getElementById("progressFill").style.width = (c / TOTAL * 100) + "%";
+    document.getElementById("progressText").textContent = `${c} / ${TOTAL}`;
+  }
+  form.addEventListener("input", e => {
+    updateProgress();
+    e.target.closest(".missing")?.classList.remove("missing");
+    if (!document.querySelector(".missing")) document.getElementById("status").textContent = "";
+  });
+
+  const endpoint = (window.SURVEY_ENDPOINT || "").trim();
+  if (!endpoint) document.getElementById("previewNote").hidden = false;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const status = document.getElementById("status");
+    const fd = new FormData(form);
+    const missing = [];
+    if (!nameEl.value.trim() || !ageValid()) missing.push(document.getElementById("aboutBlock"));
+    for (const k of keys) if (!fd.get(k)) missing.push(document.getElementById("fs_" + k));
+    document.querySelectorAll(".missing").forEach(el => el.classList.remove("missing"));
+    if (missing.length) {
+      missing.forEach(el => el.classList.add("missing"));
+      status.textContent = !ageValid() && ageEl.value
+        ? "Enter an age between 10 and 120."
+        : `${missing.length} item${missing.length > 1 ? "s" : ""} still need an answer.`;
+      missing[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    const payload = { name: nameEl.value.trim(), age: Number(ageEl.value) };
+    for (const k of keys) payload[k] = fd.get(k);
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    status.textContent = "";
+    try {
+      if (endpoint) {
+        // text/plain avoids a CORS preflight, which Apps Script can't answer.
+        await fetch(endpoint, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+      } else {
+        try {
+          const saved = JSON.parse(localStorage.getItem("survey_preview") || "[]");
+          saved.push({ ...payload, submitted_at: new Date().toISOString() });
+          localStorage.setItem("survey_preview", JSON.stringify(saved));
+        } catch {}
+      }
+      form.hidden = true;
+      document.querySelector(".progress").hidden = true;
+      document.getElementById("thanks").hidden = false;
+      window.scrollTo({ top: 0 });
+    } catch {
+      status.textContent = "Couldn't send your answers. Check your connection and press Submit again.";
+      btn.disabled = false;
+    }
+  });
+
+  updateProgress();
+</script>
+</body>
+</html>
